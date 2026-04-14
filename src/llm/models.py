@@ -8,6 +8,7 @@ from langchain_xai import ChatXAI
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_gigachat import GigaChat
 from langchain_ollama import ChatOllama
+from langchain_aws import ChatBedrockConverse
 from enum import Enum
 from pydantic import BaseModel
 from typing import Tuple, List
@@ -30,6 +31,7 @@ class ModelProvider(str, Enum):
     GIGACHAT = "GigaChat"
     AZURE_OPENAI = "Azure OpenAI"
     XAI = "xAI"
+    BEDROCK = "Bedrock"
 
 
 class LLMModel(BaseModel):
@@ -235,6 +237,15 @@ def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = N
             print(f"Azure Deployment Name Error: Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file.")
             raise ValueError("Azure OpenAI deployment name not found.  Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file.")
         return AzureChatOpenAI(azure_endpoint=azure_endpoint, azure_deployment=azure_deployment_name, api_key=api_key, api_version="2024-10-21")
+    elif model_provider == ModelProvider.BEDROCK:
+        bearer_token = (api_keys or {}).get("AWS_BEARER_TOKEN_BEDROCK") or os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+        region = os.getenv("AWS_BEDROCK_REGION", "us-east-1")
+        if bearer_token:
+            os.environ["AWS_BEARER_TOKEN_BEDROCK"] = bearer_token
+        return ChatBedrockConverse(
+            model=model_name,
+            region_name=region,
+        )
     else:
         raise ValueError(
             f"Unsupported model provider: {model_provider}. "

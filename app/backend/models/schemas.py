@@ -78,15 +78,25 @@ class BaseHedgeFundRequest(BaseModel):
         if self.agent_models:
             # Extract base agent key from unique node ID for matching
             base_agent_key = extract_base_agent_key(agent_id)
-            
+
+            # First: look for agent-specific config
             for config in self.agent_models:
-                # Check both unique node ID and base agent key for matches
                 config_base_key = extract_base_agent_key(config.agent_id)
                 if config.agent_id == agent_id or config_base_key == base_agent_key:
                     return (
                         config.model_name or self.model_name,
                         config.model_provider or self.model_provider
                     )
+
+            # Not found: inherit Portfolio Manager's model so all agents use the same model
+            for config in self.agent_models:
+                config_base_key = extract_base_agent_key(config.agent_id)
+                if config_base_key == "portfolio_manager":
+                    return (
+                        config.model_name or self.model_name,
+                        config.model_provider or self.model_provider
+                    )
+
         # Fallback to global model settings
         return self.model_name, self.model_provider
 

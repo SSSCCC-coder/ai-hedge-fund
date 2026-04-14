@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class Price(BaseModel):
@@ -6,7 +7,7 @@ class Price(BaseModel):
     close: float
     high: float
     low: float
-    volume: int
+    volume: Optional[int] = None
     time: str
 
 

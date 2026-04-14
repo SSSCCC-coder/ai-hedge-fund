@@ -68,5 +68,25 @@
     "display_name": "Azure Open AI Deployment",
     "model_name": "",
     "provider": "Azure OpenAI"
+  },
+  {
+    "display_name": "Claude Sonnet 4.5 (Bedrock)",
+    "model_name": "us.anthropic.claude-sonnet-4-5-20250514-v1:0",
+    "provider": "Bedrock"
+  },
+  {
+    "display_name": "Claude 3.5 Sonnet (Bedrock)",
+    "model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "provider": "Bedrock"
+  },
+  {
+    "display_name": "Claude 3.5 Haiku (Bedrock)",
+    "model_name": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "provider": "Bedrock"
+  },
+  {
+    "display_name": "Claude 3 Opus (Bedrock)",
+    "model_name": "us.anthropic.claude-3-opus-20240229-v1:0",
+    "provider": "Bedrock"
   }
 ]
