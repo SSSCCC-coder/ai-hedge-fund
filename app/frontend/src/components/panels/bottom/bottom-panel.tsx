@@ -1,11 +1,11 @@
 import { useLayoutContext } from '@/contexts/layout-context';
 import { useResizable } from '@/hooks/use-resizable';
 import { cn } from '@/lib/utils';
-import { Activity, FileText, X } from 'lucide-react';
+import { Activity, Brain, FileText, X } from 'lucide-react';
 import { ReactNode, useEffect } from 'react';
 import { Button } from '../../ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { OutputTab, ProcessTab } from './tabs';
+import { LogicTab, OutputTab, ProcessTab } from './tabs';
 
 interface BottomPanelProps {
   children?: ReactNode;
@@ -78,6 +78,13 @@ export function BottomPanel({
                 <Activity size={14} />
                 Process
               </TabsTrigger>
+              <TabsTrigger
+                value="logic"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm data-[state=active]:active-item text-muted-foreground"
+              >
+                <Brain size={14} />
+                Logic
+              </TabsTrigger>
             </TabsList>
             
             <Button
@@ -101,6 +108,9 @@ export function BottomPanel({
           </TabsContent>
           <TabsContent value="process" className="h-full m-0 p-4">
             <ProcessTab className="h-full" />
+          </TabsContent>
+          <TabsContent value="logic" className="h-full m-0">
+            <LogicTab className="h-full" />
           </TabsContent>
         </Tabs>
       </div>

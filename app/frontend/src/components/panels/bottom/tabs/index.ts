@@ -1,4 +1,5 @@
 export { DebugConsoleTab } from '@/components/panels/bottom/tabs/debug-console-tab';
+export { LogicTab } from '@/components/panels/bottom/tabs/logic-tab';
 export { OutputTab } from '@/components/panels/bottom/tabs/output-tab';
 export { ProcessTab } from '@/components/panels/bottom/tabs/process-tab';
 export { ProblemsTab } from '@/components/panels/bottom/tabs/problems-tab';

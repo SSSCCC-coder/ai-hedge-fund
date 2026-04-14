@@ -141,6 +141,7 @@ export function AgentNode({
           nodeId={id}
           flowId={currentFlowId?.toString() || null}
         />
+
       </CardContent>
     </NodeShell>
   );
