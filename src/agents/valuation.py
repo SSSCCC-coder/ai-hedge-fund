@@ -200,10 +200,32 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
                 "fcf_periods_analyzed": len(fcf_history)
             }
 
+        metrics_detail = {
+            "Valuation Methods": [
+                {"name": "DCF (Discounted Cash Flow)", "value": f"${dcf_val:,.0f}" if dcf_val > 0 else None, "threshold": f"vs Market Cap ${market_cap:,.0f}", "passed": (dcf_val > market_cap * 1.15) if dcf_val > 0 else None},
+                {"name": "Owner Earnings", "value": f"${owner_val:,.0f}" if owner_val > 0 else None, "threshold": f"vs Market Cap ${market_cap:,.0f}", "passed": (owner_val > market_cap * 1.15) if owner_val > 0 else None},
+                {"name": "EV/EBITDA Implied Value", "value": f"${ev_ebitda_val:,.0f}" if ev_ebitda_val > 0 else None, "threshold": f"vs Market Cap ${market_cap:,.0f}", "passed": (ev_ebitda_val > market_cap * 1.15) if ev_ebitda_val > 0 else None},
+                {"name": "Residual Income Model", "value": f"${rim_val:,.0f}" if rim_val > 0 else None, "threshold": f"vs Market Cap ${market_cap:,.0f}", "passed": (rim_val > market_cap * 1.15) if rim_val > 0 else None},
+            ],
+            "Key Inputs": [
+                {"name": "WACC", "value": f"{wacc:.2%}", "threshold": "Discount rate", "passed": None},
+                {"name": "Weighted Gap", "value": f"{weighted_gap:.1%}", "threshold": ">15% bullish", "passed": (weighted_gap > 0.15) if weighted_gap is not None else None},
+                {"name": "FCF Periods", "value": str(len(fcf_history)), "threshold": "≥3 for reliability", "passed": (len(fcf_history) >= 3)},
+            ],
+        }
+
         valuation_analysis[ticker] = {
             "signal": signal,
             "confidence": confidence,
             "reasoning": reasoning,
+            "metrics_detail": metrics_detail,
+            "metrics": {
+                "weighted_gap": f"{weighted_gap:.1%}",
+                "dcf_value": f"${dcf_val:,.0f}" if dcf_val > 0 else "N/A",
+                "owner_earnings_value": f"${owner_val:,.0f}" if owner_val > 0 else "N/A",
+                "ev_ebitda_value": f"${ev_ebitda_val:,.0f}" if ev_ebitda_val > 0 else "N/A",
+                "market_cap": f"${market_cap:,.0f}",
+            }
         }
         progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
 

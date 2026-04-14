@@ -103,10 +103,37 @@ def technical_analyst_agent(state: AgentState, agent_id: str = "technical_analys
             strategy_weights,
         )
 
+        def _signal_passed(sig: str) -> bool | None:
+            """Convert signal string to pass/fail (bullish=True, bearish=False, neutral=None)."""
+            if sig == "bullish":
+                return True
+            if sig == "bearish":
+                return False
+            return None
+
         # Generate detailed analysis report for this ticker
         technical_analysis[ticker] = {
             "signal": combined_signal["signal"],
             "confidence": round(combined_signal["confidence"] * 100),
+            "metrics": {
+                "trend": trend_signals["signal"],
+                "mean_reversion": mean_reversion_signals["signal"],
+                "momentum": momentum_signals["signal"],
+                "volatility": volatility_signals["signal"],
+                "stat_arb": stat_arb_signals["signal"],
+                "trend_confidence": f"{round(trend_signals['confidence'] * 100)}%",
+                "momentum_confidence": f"{round(momentum_signals['confidence'] * 100)}%",
+                "volatility_confidence": f"{round(volatility_signals['confidence'] * 100)}%",
+            },
+            "metrics_detail": {
+                "Strategy Signals (weight)": [
+                    {"name": "Trend Following (25%)", "value": f"{trend_signals['signal'].upper()} @ {round(trend_signals['confidence'] * 100)}%", "threshold": "bullish = passed", "passed": _signal_passed(trend_signals["signal"])},
+                    {"name": "Mean Reversion (20%)", "value": f"{mean_reversion_signals['signal'].upper()} @ {round(mean_reversion_signals['confidence'] * 100)}%", "threshold": "bullish = passed", "passed": _signal_passed(mean_reversion_signals["signal"])},
+                    {"name": "Momentum (25%)", "value": f"{momentum_signals['signal'].upper()} @ {round(momentum_signals['confidence'] * 100)}%", "threshold": "bullish = passed", "passed": _signal_passed(momentum_signals["signal"])},
+                    {"name": "Volatility (15%)", "value": f"{volatility_signals['signal'].upper()} @ {round(volatility_signals['confidence'] * 100)}%", "threshold": "bullish = passed", "passed": _signal_passed(volatility_signals["signal"])},
+                    {"name": "Stat Arb (15%)", "value": f"{stat_arb_signals['signal'].upper()} @ {round(stat_arb_signals['confidence'] * 100)}%", "threshold": "bullish = passed", "passed": _signal_passed(stat_arb_signals["signal"])},
+                ],
+            },
             "reasoning": {
                 "trend_following": {
                     "signal": trend_signals["signal"],

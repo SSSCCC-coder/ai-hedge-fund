@@ -146,6 +146,7 @@ def stanley_druckenmiller_agent(state: AgentState, agent_id: str = "stanley_druc
             "signal": druck_output.signal,
             "confidence": druck_output.confidence,
             "reasoning": druck_output.reasoning,
+            "metrics": {},
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=druck_output.reasoning)

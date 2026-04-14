@@ -75,7 +75,22 @@ def ben_graham_agent(state: AgentState, agent_id: str = "ben_graham_agent"):
             agent_id=agent_id,
         )
 
-        graham_analysis[ticker] = {"signal": graham_output.signal, "confidence": graham_output.confidence, "reasoning": graham_output.reasoning}
+        graham_analysis[ticker] = {
+            "signal": graham_output.signal,
+            "confidence": graham_output.confidence,
+            "reasoning": graham_output.reasoning,
+            "metrics_detail": {
+                "Earnings Stability": analysis_data[ticker].get("earnings_analysis", {}).get("metrics_detail", []),
+                "Financial Strength": analysis_data[ticker].get("strength_analysis", {}).get("metrics_detail", []),
+                "Graham Valuation": analysis_data[ticker].get("valuation_analysis", {}).get("metrics_detail", []),
+            },
+            "metrics": {
+                "score": f"{analysis_data[ticker].get('score', 0)}/{analysis_data[ticker].get('max_score', 0)}",
+                "earnings_stability": analysis_data[ticker].get("earnings_analysis", {}).get("details", ""),
+                "financial_strength": analysis_data[ticker].get("strength_analysis", {}).get("details", ""),
+                "valuation": analysis_data[ticker].get("valuation_analysis", {}).get("details", ""),
+            }
+        }
 
         progress.update_status(agent_id, ticker, "Done", analysis=graham_output.reasoning)
 
@@ -135,7 +150,11 @@ def analyze_earnings_stability(metrics: list, financial_line_items: list) -> dic
     else:
         details.append("EPS did not grow from earliest to latest period.")
 
-    return {"score": score, "details": "; ".join(details)}
+    metrics_detail = [
+        {"name": "Positive EPS Years", "value": f"{positive_eps_years}/{total_eps_years}", "threshold": "All years positive", "passed": positive_eps_years == total_eps_years if eps_vals else None},
+        {"name": "EPS Growth (Earliest→Latest)", "value": f"{eps_vals[-1]:.2f} → {eps_vals[0]:.2f}" if len(eps_vals) >= 2 else None, "threshold": "Positive growth", "passed": (eps_vals[0] > eps_vals[-1]) if len(eps_vals) >= 2 else None},
+    ]
+    return {"score": score, "details": "; ".join(details), "metrics_detail": metrics_detail}
 
 
 def analyze_financial_strength(financial_line_items: list) -> dict:
@@ -154,6 +173,8 @@ def analyze_financial_strength(financial_line_items: list) -> dict:
     total_liabilities = latest_item.total_liabilities or 0
     current_assets = latest_item.current_assets or 0
     current_liabilities = latest_item.current_liabilities or 0
+    current_ratio = None
+    debt_ratio = None
 
     # 1. Current ratio
     if current_liabilities > 0:
@@ -185,6 +206,7 @@ def analyze_financial_strength(financial_line_items: list) -> dict:
 
     # 3. Dividend track record
     div_periods = [item.dividends_and_other_cash_distributions for item in financial_line_items if item.dividends_and_other_cash_distributions is not None]
+    div_paid_years = 0
     if div_periods:
         # In many data feeds, dividend outflow is shown as a negative number
         # (money going out to shareholders). We'll consider any negative as 'paid a dividend'.
@@ -201,7 +223,12 @@ def analyze_financial_strength(financial_line_items: list) -> dict:
     else:
         details.append("No dividend data available to assess payout consistency.")
 
-    return {"score": score, "details": "; ".join(details)}
+    metrics_detail = [
+        {"name": "Current Ratio", "value": f"{current_ratio:.2f}" if current_ratio is not None else None, "threshold": "≥2.0", "passed": (current_ratio >= 2.0) if current_ratio is not None else None},
+        {"name": "Debt Ratio (Liab/Assets)", "value": f"{debt_ratio:.2f}" if debt_ratio is not None else None, "threshold": "<0.5", "passed": (debt_ratio < 0.5) if debt_ratio is not None else None},
+        {"name": "Dividend Track Record", "value": f"{div_paid_years}/{len(div_periods)} years" if div_periods else None, "threshold": ">50% years", "passed": (div_paid_years >= (len(div_periods) // 2 + 1)) if div_periods else None},
+    ]
+    return {"score": score, "details": "; ".join(details), "metrics_detail": metrics_detail}
 
 
 def analyze_valuation_graham(financial_line_items: list, market_cap: float) -> dict:
@@ -223,6 +250,7 @@ def analyze_valuation_graham(financial_line_items: list, market_cap: float) -> d
 
     details = []
     score = 0
+    margin_of_safety = None
 
     # 1. Net-Net Check
     #   NCAV = Current Assets - Total Liabilities
@@ -276,7 +304,16 @@ def analyze_valuation_graham(financial_line_items: list, market_cap: float) -> d
             details.append("Current price is zero or invalid; can't compute margin of safety.")
     # else: already appended details for missing graham_number
 
-    return {"score": score, "details": "; ".join(details)}
+    price_per_share_val = (market_cap / shares_outstanding) if shares_outstanding > 0 else None
+    ncav_per_share_val = (net_current_asset_value / shares_outstanding) if net_current_asset_value > 0 and shares_outstanding > 0 else None
+
+    metrics_detail_val = [
+        {"name": "NCAV", "value": f"${net_current_asset_value:,.0f}" if net_current_asset_value > 0 else None, "threshold": ">Market Cap", "passed": (net_current_asset_value > market_cap) if net_current_asset_value > 0 else None},
+        {"name": "NCAV/Share vs Price", "value": f"${ncav_per_share_val:.2f} vs ${price_per_share_val:.2f}" if ncav_per_share_val and price_per_share_val else None, "threshold": "NCAV ≥ 2/3 Price", "passed": (ncav_per_share_val >= price_per_share_val * 0.67) if ncav_per_share_val and price_per_share_val else None},
+        {"name": "Graham Number", "value": f"${graham_number:.2f}" if graham_number else None, "threshold": ">Current Price", "passed": (graham_number > (market_cap / shares_outstanding)) if graham_number and shares_outstanding > 0 else None},
+        {"name": "Margin of Safety", "value": f"{margin_of_safety:.2%}" if margin_of_safety is not None else None, "threshold": ">50%", "passed": (margin_of_safety > 0.5) if margin_of_safety is not None else None},
+    ]
+    return {"score": score, "details": "; ".join(details), "metrics_detail": metrics_detail_val}
 
 
 def generate_graham_output(

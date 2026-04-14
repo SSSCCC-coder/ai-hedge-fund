@@ -149,6 +149,7 @@ def nassim_taleb_agent(state: AgentState, agent_id: str = "nassim_taleb_agent"):
             "signal": taleb_output.signal,
             "confidence": taleb_output.confidence,
             "reasoning": taleb_output.reasoning,
+            "metrics": {},
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=taleb_output.reasoning)

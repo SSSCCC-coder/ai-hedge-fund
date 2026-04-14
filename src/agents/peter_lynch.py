@@ -140,6 +140,14 @@ def peter_lynch_agent(state: AgentState, agent_id: str = "peter_lynch_agent"):
             "signal": lynch_output.signal,
             "confidence": lynch_output.confidence,
             "reasoning": lynch_output.reasoning,
+            "metrics": {
+                "total_score": f"{analysis_data[ticker].get('score', 0):.1f}/10",
+                "growth": analysis_data[ticker].get("growth_analysis", {}).get("details", ""),
+                "valuation": analysis_data[ticker].get("valuation_analysis", {}).get("details", ""),
+                "fundamentals": analysis_data[ticker].get("fundamentals_analysis", {}).get("details", ""),
+                "sentiment": analysis_data[ticker].get("sentiment_analysis", {}).get("details", ""),
+                "insider_activity": analysis_data[ticker].get("insider_activity", {}).get("details", ""),
+            }
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=lynch_output.reasoning)

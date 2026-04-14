@@ -140,6 +140,7 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
             "signal": overall_signal,
             "confidence": confidence,
             "reasoning": reasoning,
+            "metrics": {},
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))

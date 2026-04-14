@@ -108,7 +108,14 @@ def bill_ackman_agent(state: AgentState, agent_id: str = "bill_ackman_agent"):
         ackman_analysis[ticker] = {
             "signal": ackman_output.signal,
             "confidence": ackman_output.confidence,
-            "reasoning": ackman_output.reasoning
+            "reasoning": ackman_output.reasoning,
+            "metrics": {
+                "score": f"{analysis_data[ticker].get('score', 0)}/{analysis_data[ticker].get('max_score', 0)}",
+                "quality": analysis_data[ticker].get("quality_analysis", {}).get("details", ""),
+                "balance_sheet": analysis_data[ticker].get("balance_sheet_analysis", {}).get("details", ""),
+                "activism_potential": analysis_data[ticker].get("activism_analysis", {}).get("details", ""),
+                "valuation": analysis_data[ticker].get("valuation_analysis", {}).get("details", ""),
+            }
         }
         
         progress.update_status(agent_id, ticker, "Done", analysis=ackman_output.reasoning)

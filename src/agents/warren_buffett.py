@@ -129,11 +129,52 @@ def warren_buffett_agent(state: AgentState, agent_id: str = "warren_buffett_agen
             agent_id=agent_id,
         )
 
+        # Build structured metrics_detail for process monitor
+        _ad = analysis_data[ticker]
+        _mos = _ad.get("margin_of_safety")
+        _iv = _ad.get("intrinsic_value_analysis", {}).get("intrinsic_value")
+        _mc = _ad.get("market_cap")
+        _fund = _ad.get("fundamental_analysis", {})
+        _moat = _ad.get("moat_analysis", {})
+        _cons = _ad.get("consistency_analysis", {})
+        _pp = _ad.get("pricing_power_analysis", {})
+        _bva = _ad.get("book_value_analysis", {})
+        _mgmt = _ad.get("management_analysis", {})
+
+        def _score_passed(score, max_s, threshold_pct=0.5):
+            if score is None or max_s is None or max_s == 0:
+                return None
+            return score / max_s >= threshold_pct
+
         # Store analysis in consistent format with other agents
         buffett_analysis[ticker] = {
             "signal": buffett_output.signal,
             "confidence": buffett_output.confidence,
             "reasoning": buffett_output.reasoning,
+            "metrics": {
+                "score": f"{_ad.get('score', 0)}/{_ad.get('max_score', 0)}",
+                "fundamentals": _fund.get("details", ""),
+                "moat": _moat.get("details", ""),
+                "consistency": _cons.get("details", ""),
+                "pricing_power": _pp.get("details", ""),
+                "management": _mgmt.get("details", ""),
+                "margin_of_safety": f"{_mos:.1%}" if _mos is not None else "N/A",
+                "intrinsic_value": f"${_iv:,.0f}" if _iv else "N/A",
+            },
+            "metrics_detail": {
+                "Buffett Scorecard": [
+                    {"name": "Fundamentals (ROE, Debt, Margins)", "value": f"{_fund.get('score', 0)}/7 pts", "threshold": "≥4 pts", "passed": _score_passed(_fund.get('score'), 7, 0.5)},
+                    {"name": "Competitive Moat", "value": f"{_moat.get('score', 0)}/{_moat.get('max_score', 5)} pts", "threshold": "≥50% of max", "passed": _score_passed(_moat.get('score'), _moat.get('max_score', 5))},
+                    {"name": "Earnings Consistency", "value": f"{_cons.get('score', 0)}/3 pts", "threshold": "≥2 pts", "passed": (_cons.get('score', 0) >= 2) if _cons.get('score') is not None else None},
+                    {"name": "Pricing Power", "value": f"{_pp.get('score', 0)}/5 pts", "threshold": "≥3 pts", "passed": (_pp.get('score', 0) >= 3) if _pp.get('score') is not None else None},
+                    {"name": "Book Value Growth", "value": f"{_bva.get('score', 0)}/5 pts", "threshold": "≥3 pts", "passed": (_bva.get('score', 0) >= 3) if _bva.get('score') is not None else None},
+                    {"name": "Management Quality", "value": f"{_mgmt.get('score', 0)}/{_mgmt.get('max_score', 5)} pts", "threshold": "≥50% of max", "passed": _score_passed(_mgmt.get('score'), _mgmt.get('max_score', 5))},
+                ],
+                "Intrinsic Value": [
+                    {"name": "Intrinsic Value (DCF)", "value": f"${_iv:,.0f}" if _iv else None, "threshold": f"vs Market Cap ${_mc:,.0f}" if _mc else "N/A", "passed": (_iv > _mc * 1.25) if _iv and _mc else None},
+                    {"name": "Margin of Safety", "value": f"{_mos:.1%}" if _mos is not None else None, "threshold": ">25%", "passed": (_mos > 0.25) if _mos is not None else None},
+                ],
+            },
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=buffett_output.reasoning)

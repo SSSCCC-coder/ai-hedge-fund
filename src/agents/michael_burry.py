@@ -139,6 +139,13 @@ def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"
             "signal": burry_output.signal,
             "confidence": burry_output.confidence,
             "reasoning": burry_output.reasoning,
+            "metrics": {
+                "score": f"{analysis_data[ticker].get('score', 0)}/{analysis_data[ticker].get('max_score', 0)}",
+                "value": analysis_data[ticker].get("value_analysis", {}).get("details", ""),
+                "balance_sheet": analysis_data[ticker].get("balance_sheet_analysis", {}).get("details", ""),
+                "insider_activity": analysis_data[ticker].get("insider_analysis", {}).get("details", ""),
+                "contrarian_sentiment": analysis_data[ticker].get("contrarian_analysis", {}).get("details", ""),
+            }
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=burry_output.reasoning)

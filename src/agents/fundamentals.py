@@ -134,10 +134,40 @@ def fundamentals_analyst_agent(state: AgentState, agent_id: str = "fundamentals_
         total_signals = len(signals)
         confidence = round(max(bullish_signals, bearish_signals) / total_signals, 2) * 100
 
+        metrics_detail = {
+            "Profitability": [
+                {"name": "Return on Equity", "value": f"{return_on_equity:.2%}" if return_on_equity is not None else None, "threshold": ">15%", "passed": (return_on_equity > 0.15) if return_on_equity is not None else None},
+                {"name": "Net Margin", "value": f"{net_margin:.2%}" if net_margin is not None else None, "threshold": ">20%", "passed": (net_margin > 0.20) if net_margin is not None else None},
+                {"name": "Operating Margin", "value": f"{operating_margin:.2%}" if operating_margin is not None else None, "threshold": ">15%", "passed": (operating_margin > 0.15) if operating_margin is not None else None},
+            ],
+            "Growth": [
+                {"name": "Revenue Growth", "value": f"{revenue_growth:.2%}" if revenue_growth is not None else None, "threshold": ">10%", "passed": (revenue_growth > 0.10) if revenue_growth is not None else None},
+                {"name": "Earnings Growth", "value": f"{earnings_growth:.2%}" if earnings_growth is not None else None, "threshold": ">10%", "passed": (earnings_growth > 0.10) if earnings_growth is not None else None},
+                {"name": "Book Value Growth", "value": f"{book_value_growth:.2%}" if book_value_growth is not None else None, "threshold": ">10%", "passed": (book_value_growth > 0.10) if book_value_growth is not None else None},
+            ],
+            "Financial Health": [
+                {"name": "Current Ratio", "value": f"{current_ratio:.2f}" if current_ratio is not None else None, "threshold": ">1.5", "passed": (current_ratio > 1.5) if current_ratio is not None else None},
+                {"name": "Debt-to-Equity", "value": f"{debt_to_equity:.2f}" if debt_to_equity is not None else None, "threshold": "<0.5", "passed": (debt_to_equity < 0.5) if debt_to_equity is not None else None},
+                {"name": "FCF / EPS", "value": f"{free_cash_flow_per_share:.2f} / {earnings_per_share:.2f}" if free_cash_flow_per_share is not None and earnings_per_share is not None else None, "threshold": "FCF > 80% EPS", "passed": (free_cash_flow_per_share > earnings_per_share * 0.8) if free_cash_flow_per_share is not None and earnings_per_share is not None else None},
+            ],
+            "Valuation Ratios": [
+                {"name": "P/E Ratio", "value": f"{pe_ratio:.2f}" if pe_ratio is not None else None, "threshold": "<25", "passed": (pe_ratio <= 25) if pe_ratio is not None else None},
+                {"name": "P/B Ratio", "value": f"{pb_ratio:.2f}" if pb_ratio is not None else None, "threshold": "<3", "passed": (pb_ratio <= 3) if pb_ratio is not None else None},
+                {"name": "P/S Ratio", "value": f"{ps_ratio:.2f}" if ps_ratio is not None else None, "threshold": "<5", "passed": (ps_ratio <= 5) if ps_ratio is not None else None},
+            ],
+        }
+
         fundamental_analysis[ticker] = {
             "signal": overall_signal,
             "confidence": confidence,
             "reasoning": reasoning,
+            "metrics_detail": metrics_detail,
+            "metrics": {
+                "profitability": reasoning.get("profitability_signal", {}).get("details", ""),
+                "growth": reasoning.get("growth_signal", {}).get("details", ""),
+                "financial_health": reasoning.get("financial_health_signal", {}).get("details", ""),
+                "price_ratios": reasoning.get("price_ratios_signal", {}).get("details", ""),
+            }
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))

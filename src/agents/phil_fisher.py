@@ -147,6 +147,7 @@ def phil_fisher_agent(state: AgentState, agent_id: str = "phil_fisher_agent"):
             "signal": fisher_output.signal,
             "confidence": fisher_output.confidence,
             "reasoning": fisher_output.reasoning,
+            "metrics": {},
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=fisher_output.reasoning)

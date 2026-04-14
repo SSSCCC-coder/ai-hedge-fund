@@ -7,6 +7,7 @@ from langgraph.graph import END, StateGraph
 from app.backend.services.agent_service import create_agent_function
 from src.agents.portfolio_manager import portfolio_management_agent
 from src.agents.risk_manager import risk_management_agent
+from src.agents.data_collector import data_collector_agent
 from src.main import start
 from src.utils.analysts import ANALYST_CONFIG
 from src.graph.state import AgentState
@@ -38,9 +39,13 @@ def create_graph(graph_nodes: list, graph_edges: list) -> StateGraph:
     graph = StateGraph(AgentState)
     graph.add_node("start_node", start)
 
+    # Add data collector node - runs before all analysts to gather raw input data
+    graph.add_node("data_collector", data_collector_agent)
+    graph.add_edge("start_node", "data_collector")
+
     # Get analyst nodes from the configuration
     analyst_nodes = {key: (f"{key}_agent", config["agent_func"]) for key, config in ANALYST_CONFIG.items()}
-    
+
     # Extract agent IDs from graph structure
     agent_ids = [node.id for node in graph_nodes]
     agent_ids_set = set(agent_ids)
@@ -109,7 +114,8 @@ def create_graph(graph_nodes: list, graph_edges: list) -> StateGraph:
         if agent_id not in nodes_with_incoming_edges:
             base_agent_key = extract_base_agent_key(agent_id)
             if base_agent_key in ANALYST_CONFIG and base_agent_key != "portfolio_manager":
-                graph.add_edge("start_node", agent_id)
+                # Connect to data_collector instead of start_node so raw data is gathered first
+                graph.add_edge("data_collector", agent_id)
     
     # Connect analysts that have direct connections to portfolio managers to their corresponding risk managers
     for analyst_id, portfolio_manager_id in direct_to_portfolio_managers.items():

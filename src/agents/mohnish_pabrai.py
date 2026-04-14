@@ -111,6 +111,7 @@ def mohnish_pabrai_agent(state: AgentState, agent_id: str = "mohnish_pabrai_agen
             "signal": pabrai_output.signal,
             "confidence": pabrai_output.confidence,
             "reasoning": pabrai_output.reasoning,
+            "metrics": {},
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=pabrai_output.reasoning)

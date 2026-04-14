@@ -113,6 +113,15 @@ def sentiment_analyst_agent(state: AgentState, agent_id: str = "sentiment_analys
             "signal": overall_signal,
             "confidence": confidence,
             "reasoning": reasoning,
+            "metrics": {
+                "insider_trades": str(len(insider_signals)),
+                "insider_bullish": str(insider_signals.count("bullish")),
+                "insider_bearish": str(insider_signals.count("bearish")),
+                "news_articles": str(len(news_signals)),
+                "news_bullish": str(news_signals.count("bullish")),
+                "news_bearish": str(news_signals.count("bearish")),
+                "news_neutral": str(news_signals.count("neutral")),
+            }
         }
 
         progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))

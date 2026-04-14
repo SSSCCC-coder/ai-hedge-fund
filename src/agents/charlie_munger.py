@@ -132,7 +132,15 @@ def charlie_munger_agent(state: AgentState, agent_id: str = "charlie_munger_agen
         munger_analysis[ticker] = {
             "signal": munger_output.signal,
             "confidence": munger_output.confidence,
-            "reasoning": munger_output.reasoning
+            "reasoning": munger_output.reasoning,
+            "metrics": {
+                "score": f"{analysis_data[ticker].get('score', 0):.1f}/{analysis_data[ticker].get('max_score', 0)}",
+                "moat": analysis_data[ticker].get("moat_analysis", {}).get("details", ""),
+                "management": analysis_data[ticker].get("management_analysis", {}).get("details", ""),
+                "predictability": analysis_data[ticker].get("predictability_analysis", {}).get("details", ""),
+                "valuation": analysis_data[ticker].get("valuation_analysis", {}).get("details", ""),
+                "news_sentiment": analysis_data[ticker].get("news_sentiment", ""),
+            }
         }
         
         progress.update_status(agent_id, ticker, "Done", analysis=munger_output.reasoning)

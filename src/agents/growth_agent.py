@@ -116,6 +116,14 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
             "signal": signal,
             "confidence": confidence,
             "reasoning": reasoning,
+            "metrics": {
+                "weighted_score": str(round(weighted_score, 2)),
+                "growth_score": str(scores.get("growth", 0)),
+                "valuation_score": str(scores.get("valuation", 0)),
+                "margin_score": str(scores.get("margins", 0)),
+                "insider_score": str(scores.get("insider", 0)),
+                "health_score": str(scores.get("health", 0)),
+            }
         }
         progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
 

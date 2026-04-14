@@ -92,7 +92,17 @@ def cathie_wood_agent(state: AgentState, agent_id: str = "cathie_wood_agent"):
             agent_id=agent_id,
         )
 
-        cw_analysis[ticker] = {"signal": cw_output.signal, "confidence": cw_output.confidence, "reasoning": cw_output.reasoning}
+        cw_analysis[ticker] = {
+            "signal": cw_output.signal,
+            "confidence": cw_output.confidence,
+            "reasoning": cw_output.reasoning,
+            "metrics": {
+                "score": f"{analysis_data[ticker].get('score', 0)}/{analysis_data[ticker].get('max_score', 0)}",
+                "disruptive_potential": analysis_data[ticker].get("disruptive_analysis", {}).get("details", ""),
+                "innovation": analysis_data[ticker].get("innovation_analysis", {}).get("details", ""),
+                "valuation": analysis_data[ticker].get("valuation_analysis", {}).get("details", ""),
+            }
+        }
 
         progress.update_status(agent_id, ticker, "Done", analysis=cw_output.reasoning)
 
