@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { TickerSelector } from '@/components/ui/ticker-selector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFlowContext } from '@/contexts/flow-context';
 import { useLayoutContext } from '@/contexts/layout-context';
@@ -99,10 +100,6 @@ export function StockAnalyzerNode({
     }
   }, [flowId, recoverFlowState]);
   
-  const handleTickersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTickers(e.target.value);
-  };
-
   const handleInitialCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Remove non-numeric characters except decimal point
     const numericValue = e.target.value.replace(/[^0-9.]/g, '');
@@ -257,14 +254,13 @@ export function StockAnalyzerNode({
                       <span>Tickers</span>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      You can add multiple tickers using commas (AAPL,NVDA,TSLA)
+                      Search and select stocks, or type a custom ticker and press Enter
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <Input
-                  placeholder="Enter tickers"
+                <TickerSelector
                   value={tickers}
-                  onChange={handleTickersChange}
+                  onChange={setTickers}
                 />
               </div>
               <div className="flex flex-col gap-2">

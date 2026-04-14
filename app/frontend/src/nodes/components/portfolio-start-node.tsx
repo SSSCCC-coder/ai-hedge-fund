@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { TickerInput } from '@/components/ui/ticker-selector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFlowContext } from '@/contexts/flow-context';
 import { useLayoutContext } from '@/contexts/layout-context';
@@ -307,10 +308,10 @@ export function PortfolioStartNode({
                   {positions.map((position, index) => {
                     return (
                     <div key={index} className="flex gap-2 items-center">
-                      <Input
+                      <TickerInput
                         placeholder="Ticker"
                         value={position.ticker}
-                        onChange={(e) => handlePositionChange(index, 'ticker', e.target.value)}
+                        onChange={(val: string) => handlePositionChange(index, 'ticker', val)}
                         className="flex-1"
                       />
                       <Input
