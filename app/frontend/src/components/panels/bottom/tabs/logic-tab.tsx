@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AGENT_LOGIC, AgentLogic } from '@/data/agent-logic';
+import { AGENT_LOGIC_ZH } from '@/data/agent-logic-zh';
+import { useLanguage } from '@/hooks/use-language';
 import {
   BookOpen, Brain, CheckCircle2, ChevronRight,
   Database, Sparkles, Zap, Search,
@@ -39,12 +41,14 @@ export function LogicTab({ className }: { className?: string }) {
   const agents = Object.keys(AGENT_LOGIC);
   const [selected, setSelected] = useState<string>(agents[0] || '');
   const [search, setSearch] = useState('');
+  const { language, setLanguage } = useLanguage();
 
   const filtered = agents.filter(key =>
     (AGENT_DISPLAY_NAMES[key] || key).toLowerCase().includes(search.toLowerCase())
   );
 
-  const logic: AgentLogic | null = AGENT_LOGIC[selected] || null;
+  const logicSource = language === 'chinese' ? AGENT_LOGIC_ZH : AGENT_LOGIC;
+  const logic: AgentLogic | null = logicSource[selected] || AGENT_LOGIC[selected] || null;
   const displayName = AGENT_DISPLAY_NAMES[selected] || selected;
 
   return (
@@ -52,8 +56,8 @@ export function LogicTab({ className }: { className?: string }) {
 
       {/* ── Left sidebar: agent list ── */}
       <div className="w-48 shrink-0 border-r border-border flex flex-col">
-        {/* Search */}
-        <div className="p-2 border-b border-border">
+        {/* Search + language toggle */}
+        <div className="p-2 border-b border-border flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/30 border border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
@@ -62,6 +66,26 @@ export function LogicTab({ className }: { className?: string }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+          </div>
+          <div className="inline-flex rounded border border-border overflow-hidden self-start">
+            <button
+              className={cn(
+                "px-2 py-0.5 text-[11px] transition-colors",
+                language === 'english'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
+              )}
+              onClick={() => setLanguage('english')}
+            >EN</button>
+            <button
+              className={cn(
+                "px-2 py-0.5 text-[11px] transition-colors border-l border-border",
+                language === 'chinese'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
+              )}
+              onClick={() => setLanguage('chinese')}
+            >中文</button>
           </div>
         </div>
 

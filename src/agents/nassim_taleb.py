@@ -21,6 +21,7 @@ from src.tools.api import (
 from src.utils.llm import call_llm
 from src.utils.progress import progress
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class NassimTalebSignal(BaseModel):
@@ -689,6 +690,12 @@ def generate_taleb_output(
 ) -> NassimTalebSignal:
     """Get investment decision from LLM with a compact prompt."""
 
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     facts = {
         "score": analysis_data.get("score"),
         "max_score": analysis_data.get("max_score"),
@@ -735,6 +742,7 @@ def generate_taleb_output(
                 "human",
                 "Ticker: {ticker}\n"
                 "Facts:\n{facts}\n\n"
+                "{prior_context}\n\n"
                 "Return exactly:\n"
                 "{{\n"
                 '  "signal": "bullish" | "bearish" | "neutral",\n'
@@ -748,6 +756,7 @@ def generate_taleb_output(
     prompt = template.invoke({
         "facts": json.dumps(facts, separators=(",", ":"), ensure_ascii=False),
         "ticker": ticker,
+        "prior_context": prior_context,
     })
 
     def create_default_nassim_taleb_signal():

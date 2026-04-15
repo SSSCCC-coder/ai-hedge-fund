@@ -9,6 +9,7 @@ from src.utils.progress import progress
 from src.utils.llm import call_llm
 import math
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class BenGrahamSignal(BaseModel):
@@ -328,6 +329,12 @@ def generate_graham_output(
     - Return the result in a JSON structure: { signal, confidence, reasoning }.
     """
 
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -359,6 +366,7 @@ def generate_graham_output(
 
             Analysis Data for {ticker}:
             {analysis_data}
+            {prior_context}
 
             Return JSON exactly in this format:
             {{
@@ -371,7 +379,7 @@ def generate_graham_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     def create_default_ben_graham_signal():
         return BenGrahamSignal(signal="neutral", confidence=0.0, reasoning="Error in generating analysis; defaulting to neutral.")

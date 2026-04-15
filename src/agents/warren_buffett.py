@@ -8,6 +8,7 @@ from src.tools.api import get_financial_metrics, get_market_cap, search_line_ite
 from src.utils.llm import call_llm
 from src.utils.progress import progress
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class WarrenBuffettSignal(BaseModel):
@@ -807,6 +808,12 @@ def generate_buffett_output(
         "margin_of_safety": analysis_data.get("margin_of_safety"),
     }
 
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -838,7 +845,8 @@ def generate_buffett_output(
             (
                 "human",
                 "Ticker: {ticker}\n"
-                "Facts:\n{facts}\n\n"
+                "Facts:\n{facts}\n"
+                "{prior_context}\n"
                 "Return exactly:\n"
                 "{{\n"
                 '  "signal": "bullish" | "bearish" | "neutral",\n'
@@ -852,6 +860,7 @@ def generate_buffett_output(
     prompt = template.invoke({
         "facts": json.dumps(facts, separators=(",", ":"), ensure_ascii=False),
         "ticker": ticker,
+        "prior_context": prior_context,
     })
 
     # Default fallback uses int confidence to match schema and avoid parse retries

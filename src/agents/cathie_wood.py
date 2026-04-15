@@ -8,6 +8,7 @@ from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class CathieWoodSignal(BaseModel):
@@ -379,6 +380,12 @@ def generate_cathie_wood_output(
     """
     Generates investment decisions in the style of Cathie Wood.
     """
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -417,6 +424,7 @@ def generate_cathie_wood_output(
 
             Analysis Data for {ticker}:
             {analysis_data}
+            {prior_context}
 
             Return the trading signal in this JSON format:
             {{
@@ -429,7 +437,7 @@ def generate_cathie_wood_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     def create_default_cathie_wood_signal():
         return CathieWoodSignal(signal="neutral", confidence=0.0, reasoning="Error in analysis, defaulting to neutral")

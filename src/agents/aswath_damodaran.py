@@ -16,6 +16,7 @@ from src.tools.api import (
 from src.utils.api_key import get_api_key_from_state
 from src.utils.llm import call_llm
 from src.utils.progress import progress
+from src.utils.agent_context import get_prior_signals_context
 
 
 class AswathDamodaranSignal(BaseModel):
@@ -370,6 +371,11 @@ def generate_damodaran_output(
       • Emphasize risk, growth, and cash-flow assumptions
       • Cite cost of capital, implied MOS, and valuation cross-checks
     """
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -391,6 +397,8 @@ def generate_damodaran_output(
                 Analysis data:
                 {analysis_data}
 
+                {prior_context}
+
                 Respond EXACTLY in this JSON schema:
                 {{
                   "signal": "bullish" | "bearish" | "neutral",
@@ -401,7 +409,7 @@ def generate_damodaran_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     def default_signal():
         return AswathDamodaranSignal(

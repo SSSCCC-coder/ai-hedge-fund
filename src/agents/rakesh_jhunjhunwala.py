@@ -8,6 +8,7 @@ from src.tools.api import get_financial_metrics, get_market_cap, search_line_ite
 from src.utils.llm import call_llm
 from src.utils.progress import progress
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 class RakeshJhunjhunwalaSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -648,6 +649,11 @@ def generate_jhunjhunwala_output(
     agent_id: str,
 ) -> RakeshJhunjhunwalaSignal:
     """Get investment decision from LLM with Jhunjhunwala's principles"""
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -682,6 +688,8 @@ def generate_jhunjhunwala_output(
                 Analysis Data for {ticker}:
                 {analysis_data}
 
+                {prior_context}
+
                 Return the trading signal in the following JSON format exactly:
                 {{
                   "signal": "bullish" | "bearish" | "neutral",
@@ -693,7 +701,7 @@ def generate_jhunjhunwala_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     # Default fallback signal in case parsing fails
     def create_default_rakesh_jhunjhunwala_signal():

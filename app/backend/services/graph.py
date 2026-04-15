@@ -177,6 +177,7 @@ def run_graph(
                 "show_reasoning": False,
                 "model_name": model_name,
                 "model_provider": model_provider,
+                "output_language": getattr(request, "output_language", "english") if request else "english",
                 "request": request,  # Pass the request for agent-specific model access
             },
         },

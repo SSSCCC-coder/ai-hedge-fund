@@ -24,6 +24,7 @@ import { useLayoutContext } from '@/contexts/layout-context';
 import { useNodeContext } from '@/contexts/node-context';
 import { useFlowConnection } from '@/hooks/use-flow-connection';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { useLanguage } from '@/hooks/use-language';
 import { useNodeState } from '@/hooks/use-node-state';
 import { cn, formatKeyboardShortcut } from '@/lib/utils';
 import { type PortfolioStartNode } from '../types';
@@ -51,6 +52,9 @@ export function PortfolioStartNode({
   const threeMonthsAgo = new Date(today);
   threeMonthsAgo.setMonth(today.getMonth() - 3);
   
+  // Language preference (shared across all start nodes via localStorage)
+  const { language, setLanguage } = useLanguage();
+
   // Use persistent state hooks
   const [positions, setPositions] = useNodeState<PortfolioPosition[]>(id, 'positions', [
     { ticker: '', quantity: '', tradePrice: '' },
@@ -230,6 +234,7 @@ export function PortfolioStartNode({
         model_provider: undefined,
         // Pass portfolio positions to backend
         portfolio_positions: portfolioPositions,
+        output_language: language,
       });
     } else {
       // Use the regular hedge fund API for single run
@@ -252,6 +257,7 @@ export function PortfolioStartNode({
         initial_cash: parseFloat(initialCash) || 100000,
         // Pass portfolio positions to backend
         portfolio_positions: portfolioPositions,
+        output_language: language,
       });
     }
   };
@@ -361,8 +367,33 @@ export function PortfolioStartNode({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <div className="text-subtitle text-primary flex items-center gap-1">
-                  Run
+                <div className="text-subtitle text-primary flex items-center justify-between gap-1">
+                  <span>Run</span>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <div className="inline-flex rounded border border-border overflow-hidden">
+                        <button
+                          className={cn(
+                            "px-2 py-0.5 text-[11px] transition-colors",
+                            language === 'english'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-accent'
+                          )}
+                          onClick={() => setLanguage('english')}
+                        >EN</button>
+                        <button
+                          className={cn(
+                            "px-2 py-0.5 text-[11px] transition-colors border-l border-border",
+                            language === 'chinese'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-accent'
+                          )}
+                          onClick={() => setLanguage('chinese')}
+                        >中文</button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">Output language for AI analysis</TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="flex gap-2">
                   <Popover open={open} onOpenChange={setOpen}>

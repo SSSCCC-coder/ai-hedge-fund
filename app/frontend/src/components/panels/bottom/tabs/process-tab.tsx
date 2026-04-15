@@ -7,7 +7,8 @@ import {
   TrendingUp, TrendingDown, Minus,
   ChevronDown, ChevronUp, Activity,
   CheckCircle2, XCircle, CircleDashed,
-  BarChart2, Database,
+  BarChart2, Database, GitMerge, Shield, Scale,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,12 +39,16 @@ export function ProcessTab({ className }: { className?: string }) {
   const analystSignals = Object.entries(allSignals)
     .filter(([id]) => !id.includes('risk_management') && !id.includes('portfolio_management'));
 
+  const committeeAnalysis: Record<string, any> = (outputData as any)?.committee_analysis || {};
+  const decisions: Record<string, any> = outputData?.decisions || {};
+  const hasCommittee = Object.keys(committeeAnalysis).length > 0;
+
   return (
     <div className={cn('h-full overflow-y-auto space-y-3 p-3', className)}>
-      {/* Section 1: Input */}
+      {/* Section 1: Stock Input */}
       <InputSection tickers={tickers} tickerInputData={tickerInputData} />
 
-      {/* Section 2: Agent Analytics */}
+      {/* Section 2: Individual Agent Analysis */}
       {analystSignals.length > 0 ? (
         analystSignals.map(([agentId, signals]) => (
           <AgentCard
@@ -56,6 +61,15 @@ export function ProcessTab({ className }: { className?: string }) {
         ))
       ) : (
         <EmptyState />
+      )}
+
+      {/* Section 3: Committee Synthesis */}
+      {hasCommittee && (
+        <CommitteeSynthesisSection
+          tickers={tickers}
+          committeeAnalysis={committeeAnalysis}
+          decisions={decisions}
+        />
       )}
     </div>
   );
@@ -481,13 +495,6 @@ function ProcessLog({ messages }: { messages: any[] }) {
   );
 }
 
-// ─── Status Dot (compact) ─────────────────────────────────────────────────────
-
-function StatusDot({ passed }: { passed: boolean | null }) {
-  if (passed === null) return <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shrink-0" />;
-  if (passed === true) return <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />;
-  return <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />;
-}
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
@@ -497,6 +504,431 @@ function EmptyState() {
       <Activity className="h-8 w-8 text-muted-foreground/30 mb-3" />
       <p className="text-sm text-muted-foreground">Run an analysis to see the process monitor</p>
       <p className="text-xs text-muted-foreground/60 mt-1">Metrics, signals, and reasoning will appear here</p>
+    </div>
+  );
+}
+
+// ─── Committee Synthesis Section ──────────────────────────────────────────────
+
+const COMMITTEE_META: Record<string, { label: string; color: string; members: string }> = {
+  value:            { label: 'Value',             color: 'text-blue-400',   members: 'Buffett · Graham · Munger · Pabrai' },
+  growth:           { label: 'Growth',            color: 'text-purple-400', members: 'Lynch · Fisher · Wood · Jhunjhunwala' },
+  contrarian_macro: { label: 'Macro/Contrarian',  color: 'text-orange-400', members: 'Burry · Ackman · Druckenmiller' },
+};
+
+const STOCK_TYPE_META: Record<string, { label: string; bg: string; text: string }> = {
+  value:    { label: 'VALUE',    bg: 'bg-blue-500/10',   text: 'text-blue-400' },
+  growth:   { label: 'GROWTH',   bg: 'bg-purple-500/10', text: 'text-purple-400' },
+  macro:    { label: 'MACRO',    bg: 'bg-orange-500/10', text: 'text-orange-400' },
+  balanced: { label: 'BALANCED', bg: 'bg-gray-500/10',   text: 'text-gray-400' },
+};
+
+function SynthesisScoreBar({ score }: { score: number }) {
+  const clamped = Math.max(-1, Math.min(1, score));
+  const color   = clamped > 0.15 ? 'bg-green-500' : clamped < -0.15 ? 'bg-red-500' : 'bg-yellow-500';
+  const pct     = Math.abs(clamped) * 50; // 0–50% width from centre
+  return (
+    <div className="relative h-2 w-full rounded-full bg-muted overflow-hidden">
+      <div className="absolute left-1/2 top-0 h-full w-px bg-border/80" />
+      <div
+        className={cn('absolute top-0 h-full rounded-full transition-all', color)}
+        style={{
+          left:  clamped >= 0 ? '50%' : `${50 - pct}%`,
+          width: `${pct}%`,
+        }}
+      />
+    </div>
+  );
+}
+
+function CommitteeSynthesisSection({
+  tickers,
+  committeeAnalysis,
+  decisions,
+}: {
+  tickers: string[];
+  committeeAnalysis: Record<string, any>;
+  decisions: Record<string, any>;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const tickersWithData = tickers.filter(t => committeeAnalysis[t]);
+
+  return (
+    <div className="rounded-lg border border-border bg-card/30 overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between p-3 hover:bg-accent/30 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <GitMerge className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Committee Synthesis</span>
+          <span className="text-xs text-muted-foreground">
+            ({tickersWithData.length} ticker{tickersWithData.length !== 1 ? 's' : ''})
+          </span>
+        </div>
+        {expanded
+          ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+          : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border divide-y divide-border/50">
+          {tickersWithData.map(ticker => (
+            <TickerSynthesisCard
+              key={ticker}
+              ticker={ticker}
+              analysis={committeeAnalysis[ticker]}
+              decision={decisions[ticker]}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TickerSynthesisCard({
+  ticker, analysis, decision,
+}: {
+  ticker: string;
+  analysis: any;
+  decision: any;
+}) {
+  const [open, setOpen] = useState(true);
+  if (!analysis) return null;
+
+  const {
+    stock_type, taleb_risk_gate, taleb_position_factor,
+    damodaran_anchor, damodaran_confidence_adj,
+    value_committee, growth_committee, contrarian_macro_committee,
+    weighted_score, dominant_committee,
+    technical_trend, overall_sentiment,
+  } = analysis;
+
+  const stockMeta  = STOCK_TYPE_META[stock_type]  ?? STOCK_TYPE_META.balanced;
+  const ws         = weighted_score ?? 0;
+  const wsColor    = ws > 0.15 ? 'text-green-400' : ws < -0.15 ? 'text-red-400' : 'text-yellow-400';
+  const wsSign     = ws > 0 ? '+' : '';
+
+  const talebColor =
+    taleb_risk_gate === 'clear'   ? 'text-green-400' :
+    taleb_risk_gate === 'caution' ? 'text-yellow-400' : 'text-red-400';
+
+  const anchorColor =
+    damodaran_anchor === 'undervalued' ? 'text-green-400' :
+    damodaran_anchor === 'overvalued'  ? 'text-red-400'   : 'text-yellow-400';
+
+  // committee weight ordering: dominant first
+  const committeesRaw: [string, any][] = [
+    ['value',            value_committee],
+    ['growth',           growth_committee],
+    ['contrarian_macro', contrarian_macro_committee],
+  ];
+  const committees: [string, any][] = [...committeesRaw].sort(
+    ([aKey], [bKey]) => (aKey === dominant_committee ? -1 : bKey === dominant_committee ? 1 : 0)
+  );
+
+  return (
+    <div>
+      {/* Ticker row */}
+      <button
+        className="w-full flex items-center justify-between px-3 py-2 bg-muted/10 hover:bg-muted/20 transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs font-bold text-blue-400">{ticker}</span>
+          <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded border',
+            stockMeta.bg, stockMeta.text, 'border-current/30')}>
+            {stockMeta.label}
+          </span>
+          <span className={cn('font-mono text-xs font-semibold', wsColor)}>
+            {wsSign}{ws.toFixed(3)}
+          </span>
+          {decision && (
+            <span className={cn('text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded',
+              decision.action === 'buy'  ? 'bg-green-500/10 text-green-400' :
+              decision.action === 'sell' ? 'bg-red-500/10 text-red-400' :
+                                           'bg-yellow-500/10 text-yellow-400')}>
+              {decision.action} {decision.quantity > 0 ? `×${decision.quantity}` : ''}
+            </span>
+          )}
+        </div>
+        {open
+          ? <ChevronUp className="h-3 w-3 text-muted-foreground" />
+          : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="px-3 py-3 space-y-4 bg-muted/5">
+
+          {/* ── Step 1: Stock Classification ──────────────────────── */}
+          <SynthesisStep number={1} title="Stock Classification">
+            <div className="flex items-start gap-6 flex-wrap">
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Type detected</p>
+                <span className={cn('text-xs font-bold', stockMeta.text)}>{stockMeta.label}</span>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Committee weights</p>
+                <div className="flex items-center gap-2">
+                  {committees.map(([key, c]) => (
+                    <span key={key} className={cn(
+                      'text-[10px] font-semibold',
+                      COMMITTEE_META[key]?.color ?? 'text-foreground'
+                    )}>
+                      {COMMITTEE_META[key]?.label} {Math.round((c?.weight ?? 0) * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Context signals</p>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span>Tech: <span className={
+                    technical_trend === 'bullish' ? 'text-green-400' :
+                    technical_trend === 'bearish' ? 'text-red-400' : 'text-yellow-400'
+                  }>{technical_trend}</span></span>
+                  <span>Sent: <span className={
+                    overall_sentiment === 'bullish' ? 'text-green-400' :
+                    overall_sentiment === 'bearish' ? 'text-red-400' : 'text-yellow-400'
+                  }>{overall_sentiment}</span></span>
+                </div>
+              </div>
+            </div>
+          </SynthesisStep>
+
+          {/* ── Step 2: Gate Checks ───────────────────────────────── */}
+          <SynthesisStep number={2} title="Gate Checks">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Taleb */}
+              <div className="flex items-start gap-2 rounded border border-border/50 p-2 bg-muted/10">
+                <Shield className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Nassim Taleb — Risk Gate</p>
+                  <p className={cn('text-xs font-semibold capitalize', talebColor)}>
+                    {taleb_risk_gate}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Position factor: <span className="font-mono font-semibold text-foreground">{taleb_position_factor}×</span>
+                    {taleb_position_factor < 1 && (
+                      <span className="text-yellow-400"> ← size restricted</span>
+                    )}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                    {taleb_risk_gate === 'clear'
+                      ? 'No tail-risk flags. Normal sizing.'
+                      : taleb_risk_gate === 'caution'
+                      ? 'Elevated risk. Reduced to 70% of normal.'
+                      : 'Danger. Position capped at 30%.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Damodaran */}
+              <div className="flex items-start gap-2 rounded border border-border/50 p-2 bg-muted/10">
+                <Scale className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Aswath Damodaran — Valuation Anchor</p>
+                  <p className={cn('text-xs font-semibold capitalize', anchorColor)}>
+                    {damodaran_anchor}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Confidence adj: <span className="font-mono font-semibold text-foreground">{damodaran_confidence_adj}×</span>
+                    {damodaran_confidence_adj > 1 && <span className="text-green-400"> ← boosted</span>}
+                    {damodaran_confidence_adj < 1 && <span className="text-yellow-400"> ← discounted</span>}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                    {damodaran_anchor === 'undervalued'
+                      ? 'Trading below intrinsic value. Bullish signals amplified.'
+                      : damodaran_anchor === 'overvalued'
+                      ? 'Trading above intrinsic value. Bullish signals discounted.'
+                      : 'Fair value range. No confidence adjustment.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </SynthesisStep>
+
+          {/* ── Step 3: Committee Voting ──────────────────────────── */}
+          <SynthesisStep number={3} title="Committee Voting">
+            <div className="space-y-2.5">
+              {committees.map(([key, c]) => {
+                if (!c) return null;
+                const meta      = COMMITTEE_META[key];
+                const isDominant= key === dominant_committee;
+                const agents: any[] = c.agents ?? [];
+                const weight    = Math.round((c.weight ?? 0) * 100);
+                const score     = c.score ?? 0;
+                const scoreSign = score > 0 ? '+' : '';
+
+                return (
+                  <div key={key} className={cn(
+                    'rounded border p-2.5 transition-all',
+                    isDominant ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-muted/5'
+                  )}>
+                    {/* Committee header */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-xs font-semibold', meta?.color)}>{meta?.label}</span>
+                        {isDominant && (
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-primary border border-primary/40 px-1 rounded">
+                            dominant
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>weight <span className="font-mono font-semibold text-foreground">{weight}%</span></span>
+                        <span>contribution <span className={cn('font-mono font-semibold',
+                          score > 0.15 ? 'text-green-400' : score < -0.15 ? 'text-red-400' : 'text-yellow-400')}>
+                          {scoreSign}{(score * (c.weight ?? 0)).toFixed(3)}
+                        </span></span>
+                      </div>
+                    </div>
+
+                    {/* Score bar */}
+                    <SynthesisScoreBar score={score} />
+
+                    {/* Vote counts + raw score */}
+                    <div className="flex items-center gap-3 mt-1.5 text-[10px]">
+                      <span className="text-green-400 font-semibold">{c.bullish ?? 0} bullish</span>
+                      <span className="text-yellow-400">{c.neutral ?? 0} neutral</span>
+                      <span className="text-red-400">{c.bearish ?? 0} bearish</span>
+                      <span className="ml-auto font-mono text-muted-foreground">
+                        raw score: <span className={cn('font-semibold',
+                          score > 0.15 ? 'text-green-400' : score < -0.15 ? 'text-red-400' : 'text-yellow-400')}>
+                          {scoreSign}{score.toFixed(3)}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Agent details */}
+                    {agents.length > 0 ? (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 pt-1.5 border-t border-border/30">
+                        {agents.map((a: any) => (
+                          <div key={a.name} className="flex items-center gap-1 text-[10px]">
+                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0',
+                              a.signal === 'bullish' ? 'bg-green-500' :
+                              a.signal === 'bearish' ? 'bg-red-500' : 'bg-yellow-500'
+                            )} />
+                            <span className="text-muted-foreground capitalize">
+                              {a.name.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-muted-foreground/50 font-mono">{a.confidence}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground/40 italic mt-1.5">
+                        No {meta?.label} agents connected to this flow
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </SynthesisStep>
+
+          {/* ── Step 4: Score Calculation ─────────────────────────── */}
+          <SynthesisStep number={4} title="Weighted Score Calculation">
+            <div className="font-mono text-xs space-y-1 bg-muted/20 rounded p-2.5">
+              {committees.map(([key, c]) => {
+                if (!c || !c.agents?.length) return null;
+                const meta   = COMMITTEE_META[key];
+                const score  = c.score ?? 0;
+                const weight = c.weight ?? 0;
+                const contrib= score * weight;
+                const sign   = score > 0 ? '+' : '';
+                const cSign  = contrib > 0 ? '+' : '';
+                return (
+                  <div key={key} className="flex items-center gap-2 text-[11px]">
+                    <span className={cn('w-28 shrink-0', meta?.color)}>{meta?.label}</span>
+                    <span className="text-muted-foreground">
+                      {sign}{score.toFixed(3)} × {Math.round(weight * 100)}%
+                    </span>
+                    <span className="text-muted-foreground">=</span>
+                    <span className={cn('font-semibold',
+                      contrib > 0.05 ? 'text-green-400' : contrib < -0.05 ? 'text-red-400' : 'text-yellow-400')}>
+                      {cSign}{contrib.toFixed(3)}
+                    </span>
+                  </div>
+                );
+              })}
+              <div className="flex items-center gap-2 text-[11px] pt-1.5 border-t border-border/50">
+                <span className="w-28 shrink-0 font-semibold text-foreground">Composite</span>
+                <span className="text-muted-foreground">= </span>
+                <span className={cn('font-bold text-sm', wsColor)}>
+                  {wsSign}{ws.toFixed(3)}
+                </span>
+                <SynthesisScoreBar score={ws} />
+              </div>
+            </div>
+          </SynthesisStep>
+
+          {/* ── Step 5: Final Decision ─────────────────────────────── */}
+          {decision && (
+            <SynthesisStep number={5} title="Portfolio Decision">
+              <div className="flex items-start gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {(decision.action === 'buy' || decision.action === 'long')
+                    ? <ArrowUp className="h-4 w-4 text-green-500" />
+                    : (decision.action === 'sell' || decision.action === 'short')
+                    ? <ArrowDown className="h-4 w-4 text-red-500" />
+                    : <Minus className="h-4 w-4 text-yellow-500" />}
+                  <span className={cn('text-sm font-bold uppercase',
+                    (decision.action === 'buy' || decision.action === 'long') ? 'text-green-400' :
+                    (decision.action === 'sell' || decision.action === 'short') ? 'text-red-400' : 'text-yellow-400')}>
+                    {decision.action}
+                  </span>
+                  {decision.quantity > 0 && (
+                    <span className="text-xs font-mono text-foreground">× {decision.quantity} shares</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">confidence</span>
+                  <span className={cn('text-xs font-mono font-semibold',
+                    decision.confidence >= 70 ? 'text-green-400' :
+                    decision.confidence >= 40 ? 'text-yellow-400' : 'text-muted-foreground')}>
+                    {decision.confidence}%
+                  </span>
+                </div>
+              </div>
+              {decision.reasoning && (
+                <div className="mt-2 text-[11px] text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-2">
+                  {decision.reasoning}
+                </div>
+              )}
+            </SynthesisStep>
+          )}
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SynthesisStep({
+  number, title, children,
+}: {
+  number: number;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3">
+      {/* Step number */}
+      <div className="flex flex-col items-center shrink-0">
+        <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center">
+          <span className="text-[9px] font-bold text-primary">{number}</span>
+        </div>
+        <div className="flex-1 w-px bg-border/40 mt-1" />
+      </div>
+      {/* Content */}
+      <div className="flex-1 pb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          {title}
+        </p>
+        {children}
+      </div>
     </div>
   );
 }

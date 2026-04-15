@@ -16,6 +16,7 @@ from src.utils.progress import progress
 from src.utils.llm import call_llm
 import statistics
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 class StanleyDruckenmillerSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -536,6 +537,11 @@ def generate_druckenmiller_output(
     """
     Generates a JSON signal in the style of Stanley Druckenmiller.
     """
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -574,6 +580,8 @@ def generate_druckenmiller_output(
               Analysis Data for {ticker}:
               {analysis_data}
 
+              {prior_context}
+
               Return the trading signal in this JSON format:
               {{
                 "signal": "bullish/bearish/neutral",
@@ -585,7 +593,7 @@ def generate_druckenmiller_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     def create_default_signal():
         return StanleyDruckenmillerSignal(

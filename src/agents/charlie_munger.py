@@ -8,6 +8,7 @@ from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 class CharlieMungerSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -828,6 +829,12 @@ def generate_munger_output(
     agent_id: str,
     confidence_hint: int,
 ) -> CharlieMungerSignal:
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     facts_bundle = make_munger_facts_bundle(analysis_data)
     template = ChatPromptTemplate.from_messages([
         ("system",
@@ -838,6 +845,7 @@ def generate_munger_output(
          "Ticker: {ticker}\n"
          "Facts:\n{facts}\n"
          "Confidence: {confidence}\n"
+         "{prior_context}\n"
          "Return exactly:\n"
          "{{\n"  # escaped {
          '  "signal": "bullish" | "bearish" | "neutral",\n'
@@ -850,6 +858,7 @@ def generate_munger_output(
         "ticker": ticker,
         "facts": json.dumps(facts_bundle, separators=(",", ":"), ensure_ascii=False),
         "confidence": confidence_hint,
+        "prior_context": prior_context,
     })
 
     def _default():

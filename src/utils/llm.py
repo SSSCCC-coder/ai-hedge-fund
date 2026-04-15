@@ -45,6 +45,11 @@ def call_llm(
         if request and hasattr(request, 'api_keys'):
             api_keys = request.api_keys
 
+    # Inject output language instruction when Chinese is selected
+    output_language = state.get("metadata", {}).get("output_language", "english") if state else "english"
+    if output_language == "chinese":
+        _inject_chinese_instruction(prompt)
+
     model_info = get_model_info(model_name, model_provider)
     llm = get_model(model_name, model_provider, api_keys)
 
@@ -82,6 +87,44 @@ def call_llm(
 
     # This should never be reached due to the retry logic above
     return create_default_response(pydantic_model)
+
+
+_CHINESE_INSTRUCTION = (
+    "IMPORTANT: You must respond entirely in Simplified Chinese (简体中文). "
+    "Write ALL analysis, reasoning, explanations, and commentary in Chinese. "
+    "Keep ticker symbols (e.g. AAPL), numbers, percentages, and standard financial "
+    "abbreviations (ROE, P/E, DCF, EPS, FCF, EBITDA, etc.) in their original form."
+)
+
+
+def _inject_chinese_instruction(prompt) -> None:
+    """
+    Mutate *prompt* in-place to prepend the Chinese output instruction into the
+    first SystemMessage found, or insert a new SystemMessage at position 0.
+
+    Works with both list[BaseMessage] and ChatPromptValue / similar objects that
+    expose a .messages attribute.
+    """
+    from langchain_core.messages import SystemMessage
+
+    messages = None
+    if isinstance(prompt, list):
+        messages = prompt
+    elif hasattr(prompt, "messages"):
+        messages = prompt.messages  # ChatPromptValue
+
+    if messages is None:
+        return  # Unknown prompt shape – skip silently
+
+    for i, msg in enumerate(messages):
+        if isinstance(msg, SystemMessage):
+            # Prepend to existing system message
+            existing = msg.content if isinstance(msg.content, str) else str(msg.content)
+            messages[i] = SystemMessage(content=f"{_CHINESE_INSTRUCTION}\n\n{existing}")
+            return
+
+    # No system message found – insert one at the front
+    messages.insert(0, SystemMessage(content=_CHINESE_INSTRUCTION))
 
 
 def create_default_response(model_class: type[BaseModel]) -> BaseModel:

@@ -8,6 +8,7 @@ from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class BillAckmanSignal(BaseModel):
@@ -411,9 +412,14 @@ def generate_ackman_output(
 ) -> BillAckmanSignal:
     """
     Generates investment decisions in the style of Bill Ackman.
-    Includes more explicit references to brand strength, activism potential, 
+    Includes more explicit references to brand strength, activism potential,
     catalysts, and management changes in the system prompt.
     """
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
     template = ChatPromptTemplate.from_messages([
         (
             "system",
@@ -444,6 +450,8 @@ def generate_ackman_output(
             Analysis Data for {ticker}:
             {analysis_data}
 
+            {prior_context}
+
             Return your output in strictly valid JSON:
             {{
               "signal": "bullish" | "bearish" | "neutral",
@@ -456,7 +464,8 @@ def generate_ackman_output(
 
     prompt = template.invoke({
         "analysis_data": json.dumps(analysis_data, indent=2),
-        "ticker": ticker
+        "ticker": ticker,
+        "prior_context": prior_context,
     })
 
     def create_default_bill_ackman_signal():

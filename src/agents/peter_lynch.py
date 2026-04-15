@@ -13,6 +13,7 @@ from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
 from src.utils.api_key import get_api_key_from_state
+from src.utils.agent_context import get_prior_signals_context
 
 
 class PeterLynchSignal(BaseModel):
@@ -455,6 +456,12 @@ def generate_lynch_output(
     """
     Generates a final JSON signal in Peter Lynch's voice & style.
     """
+    prior_context = get_prior_signals_context(
+        state["data"].get("analyst_signals", {}),
+        agent_id,
+        ticker,
+    )
+
     template = ChatPromptTemplate.from_messages(
         [
             (
@@ -490,6 +497,7 @@ def generate_lynch_output(
 
                 Analysis Data:
                 {analysis_data}
+                {prior_context}
 
                 Return only valid JSON with "signal", "confidence", and "reasoning".
                 """,
@@ -497,7 +505,7 @@ def generate_lynch_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker, "prior_context": prior_context})
 
     def create_default_signal():
         return PeterLynchSignal(
