@@ -97,7 +97,7 @@ const SECTOR_COLORS: Record<string, string> = {
   ETF:        'text-gray-400',
 };
 
-// ─── Single ticker autocomplete input (for position rows) ─────────────────
+// ─── Single ticker select (for position rows) ─────────────────────────────
 interface TickerInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -107,54 +107,132 @@ interface TickerInputProps {
 
 export function TickerInput({ value, onChange, placeholder = 'Ticker', className }: TickerInputProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState(value);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync external value changes
-  useEffect(() => { setSearch(value); }, [value]);
-
-  const suggestions = search.trim()
+  const filtered = search.trim()
     ? POPULAR_STOCKS.filter(s =>
-        s.ticker.toLowerCase().startsWith(search.toLowerCase()) ||
+        s.ticker.toLowerCase().includes(search.toLowerCase()) ||
         s.name.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 8)
-    : [];
+      )
+    : POPULAR_STOCKS;
+
+  const grouped = filtered.reduce<Record<string, StockInfo[]>>((acc, stock) => {
+    if (!acc[stock.sector]) acc[stock.sector] = [];
+    acc[stock.sector].push(stock);
+    return acc;
+  }, {});
 
   const handleSelect = (ticker: string) => {
     onChange(ticker);
-    setSearch(ticker);
+    setSearch('');
     setOpen(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && search.trim()) {
+      e.preventDefault();
+      const custom = search.trim().toUpperCase().replace(/,/g, '');
+      if (custom) { onChange(custom); setSearch(''); setOpen(false); }
+    }
+    if (e.key === 'Escape') setOpen(false);
+  };
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setSearch('');
+  }, [open]);
+
+  const selected = value ? POPULAR_STOCKS.find(s => s.ticker === value) : null;
+
   return (
-    <div ref={containerRef} className={cn('relative', className)}>
-      <Input
-        placeholder={placeholder}
-        value={search}
-        onChange={e => {
-          setSearch(e.target.value.toUpperCase());
-          onChange(e.target.value.toUpperCase());
-          setOpen(true);
-        }}
-        onFocus={() => search && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="font-mono text-xs uppercase"
-      />
-      {open && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 w-56 rounded-md border border-border bg-node shadow-lg overflow-hidden">
-          {suggestions.map(stock => (
-            <div
-              key={stock.ticker}
-              className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent text-xs"
-              onMouseDown={() => handleSelect(stock.ticker)}
-            >
-              <span className="font-mono font-semibold w-14 shrink-0">{stock.ticker}</span>
-              <span className="text-muted-foreground truncate">{stock.name}</span>
-            </div>
-          ))}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          className={cn(
+            'flex h-9 w-full items-center gap-1.5 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm cursor-pointer',
+            'hover:border-ring focus-within:ring-1 focus-within:ring-ring transition-colors',
+            open && 'ring-1 ring-ring border-ring',
+            className
+          )}
+          onClick={() => setOpen(true)}
+        >
+          {value ? (
+            <>
+              <span className="font-mono text-xs font-semibold truncate flex-1">{value}</span>
+              {selected && (
+                <span className="text-[10px] text-muted-foreground hidden sm:block truncate max-w-[80px]">{selected.name}</span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground text-xs select-none flex-1">{placeholder}</span>
+          )}
+          <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </div>
-      )}
-    </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className="w-72 p-0 bg-node border border-border shadow-xl"
+        align="start"
+        sideOffset={4}
+      >
+        {/* Search input */}
+        <div className="p-2 border-b border-border">
+          <Input
+            ref={inputRef}
+            placeholder="Search ticker or company name..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="h-8 text-xs bg-transparent border-border"
+          />
+          {search.trim() && !POPULAR_STOCKS.find(s => s.ticker === search.trim().toUpperCase()) && (
+            <p className="text-xs text-muted-foreground mt-1 px-1">
+              Press <kbd className="bg-muted px-1 rounded text-[10px]">Enter</kbd> to add <span className="font-mono text-foreground">{search.trim().toUpperCase()}</span>
+            </p>
+          )}
+        </div>
+
+        {/* Stock list */}
+        <div className="max-h-56 overflow-y-auto py-1">
+          {Object.keys(grouped).length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              No stocks found. Press Enter to add custom ticker.
+            </div>
+          ) : (
+            Object.entries(grouped).map(([sector, stocks]) => (
+              <div key={sector}>
+                <div className={cn('px-3 py-1 text-[10px] font-semibold uppercase tracking-wider sticky top-0 bg-node', SECTOR_COLORS[sector] ?? 'text-muted-foreground')}>
+                  {sector}
+                </div>
+                {stocks.map(stock => {
+                  const isSelected = value === stock.ticker;
+                  return (
+                    <div
+                      key={stock.ticker}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-accent transition-colors',
+                        isSelected && 'bg-accent/50'
+                      )}
+                      onClick={() => handleSelect(stock.ticker)}
+                    >
+                      <span className={cn(
+                        'font-mono text-xs font-semibold w-14 shrink-0',
+                        isSelected ? 'text-foreground' : 'text-muted-foreground'
+                      )}>
+                        {stock.ticker}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate flex-1">{stock.name}</span>
+                      {isSelected && <Check className="h-3 w-3 shrink-0 text-primary" />}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
