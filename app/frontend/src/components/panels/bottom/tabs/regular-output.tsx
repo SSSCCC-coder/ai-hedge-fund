@@ -318,6 +318,117 @@ function CommitteeBreakdown({ analysis }: { analysis: any }) {
   );
 }
 
+// ── Functional analyst helpers ────────────────────────────────────────────
+
+const FUNCTIONAL_ANALYST_KEYS = [
+  'fundamentals_analyst',
+  'valuation_analyst',
+  'growth_analyst',
+  'technicals_analyst',
+  'sentiment_agent',
+  'news_sentiment_agent',
+];
+
+function isFunctionalAnalyst(agentId: string): boolean {
+  return FUNCTIONAL_ANALYST_KEYS.some(k => agentId.includes(k));
+}
+
+function PassIcon({ passed }: { passed: boolean | null | undefined }) {
+  if (passed === null || passed === undefined)
+    return <span className="text-muted-foreground text-[10px]">—</span>;
+  return passed
+    ? <span className="text-green-400 text-[10px] font-bold">✓</span>
+    : <span className="text-red-400 text-[10px] font-bold">✗</span>;
+}
+
+function MetricsDetailTable({ metricsDetail }: { metricsDetail: Record<string, any[]> }) {
+  return (
+    <div className="space-y-2">
+      {Object.entries(metricsDetail).map(([category, items]) => (
+        <div key={category}>
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            {category}
+          </div>
+          <div className="rounded border border-border/50 overflow-hidden">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-muted/30">
+                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Metric</th>
+                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Value</th>
+                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Threshold</th>
+                  <th className="text-center px-2 py-1 font-medium text-muted-foreground w-8">Pass</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(items || []).map((item: any, i: number) => (
+                  <tr key={i} className="border-t border-border/30 hover:bg-muted/10">
+                    <td className="px-2 py-1 text-foreground">{item.name}</td>
+                    <td className="px-2 py-1 font-mono text-foreground">{item.value ?? '—'}</td>
+                    <td className="px-2 py-1 text-muted-foreground">{item.threshold ?? '—'}</td>
+                    <td className="px-2 py-1 text-center"><PassIcon passed={item.passed} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FunctionalAnalystCard({ agentId, sigData }: { agentId: string; sigData: any }) {
+  const metrics       = sigData.metrics || {};
+  const metricsDetail = sigData.metrics_detail;
+  const reasoning     = sigData.reasoning || {};
+
+  // Build a readable key-value summary from `metrics`
+  const kvMetrics: { label: string; value: string }[] = Object.entries(metrics)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => ({
+      label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: String(v),
+    }));
+
+  // For news_sentiment: pull metrics from reasoning.news_sentiment.metrics
+  let newsMetrics: { label: string; value: string }[] = [];
+  if (agentId.includes('news_sentiment') && reasoning.news_sentiment?.metrics) {
+    newsMetrics = Object.entries(reasoning.news_sentiment.metrics).map(([k, v]) => ({
+      label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: String(v),
+    }));
+  }
+
+  const displayMetrics = newsMetrics.length > 0 ? newsMetrics : kvMetrics;
+
+  return (
+    <div className="rounded-md border border-border/50 bg-muted/5 p-3 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold">{getDisplayName(agentId)}</span>
+        <SignalBadge signal={sigData.signal?.toLowerCase()} />
+        <ConfidenceBadge value={sigData.confidence ?? 0} />
+      </div>
+
+      {metricsDetail && <MetricsDetailTable metricsDetail={metricsDetail} />}
+
+      {!metricsDetail && displayMetrics.length > 0 && (
+        <div className="rounded border border-border/50 overflow-hidden">
+          <table className="w-full text-[11px]">
+            <tbody>
+              {displayMetrics.map(({ label, value }) => (
+                <tr key={label} className="border-t border-border/30 first:border-t-0 hover:bg-muted/10">
+                  <td className="px-2 py-1 text-muted-foreground w-1/2">{label}</td>
+                  <td className="px-2 py-1 font-mono text-foreground">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Analysis section ──────────────────────────────────────────────────────
 
 function AnalysisResultsSection({
@@ -357,10 +468,21 @@ function AnalysisResultsSection({
           </TabsList>
 
           {tickers.map(ticker => {
-            const decision  = outputData.decisions[ticker];
-            const ca        = committeeAnalysis?.[ticker];
-            const agents    = (Object.entries(outputData.analyst_signals || {}) as [string, any][])
-              .filter(([agent, signals]) => ticker in signals && !agent.includes('risk_management'))
+            const decision = outputData.decisions[ticker];
+            const ca       = committeeAnalysis?.[ticker];
+
+            const allAgents = (Object.entries(outputData.analyst_signals || {}) as [string, any][])
+              .filter(([agent, signals]) => ticker in signals && !agent.includes('risk_management'));
+
+            const functionalAgents = allAgents
+              .filter(([agent]) => isFunctionalAnalyst(agent))
+              .sort(([a], [b]) => {
+                const order = ['fundamentals', 'valuation', 'growth', 'technicals', 'sentiment_agent', 'news_sentiment'];
+                return order.findIndex(k => a.includes(k)) - order.findIndex(k => b.includes(k));
+              });
+
+            const masterAgents = allAgents
+              .filter(([agent]) => !isFunctionalAnalyst(agent))
               .sort(([a], [b]) => a.localeCompare(b));
 
             return (
@@ -376,43 +498,57 @@ function AnalysisResultsSection({
                   </div>
                 )}
 
-                {/* Agent signal table */}
-                <div className="space-y-1.5">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Individual Signals
+                {/* ── Functional analysts ── */}
+                {functionalAgents.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Functional Analysts
+                    </div>
+                    {functionalAgents.map(([agent, signals]) => (
+                      <FunctionalAnalystCard key={agent} agentId={agent} sigData={signals[ticker]} />
+                    ))}
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-44">Agent</TableHead>
-                        <TableHead className="w-28">Signal</TableHead>
-                        <TableHead className="w-28">Confidence</TableHead>
-                        <TableHead>Reasoning</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {agents.map(([agent, signals]) => {
-                        const s = signals[ticker];
-                        return (
-                          <TableRow key={agent}>
-                            <TableCell className="font-medium text-xs align-top pt-3">
-                              {getDisplayName(agent)}
-                            </TableCell>
-                            <TableCell className="align-top pt-3">
-                              <SignalBadge signal={s.signal?.toLowerCase()} />
-                            </TableCell>
-                            <TableCell className="align-top pt-3">
-                              <ConfidenceBadge value={s.confidence ?? 0} />
-                            </TableCell>
-                            <TableCell className="max-w-md align-top pt-3">
-                              <ReasoningContent content={s.reasoning} />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                )}
+
+                {/* ── Master agents ── */}
+                {masterAgents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Individual Signals
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-44">Agent</TableHead>
+                          <TableHead className="w-28">Signal</TableHead>
+                          <TableHead className="w-28">Confidence</TableHead>
+                          <TableHead>Reasoning</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {masterAgents.map(([agent, signals]) => {
+                          const s = signals[ticker];
+                          return (
+                            <TableRow key={agent}>
+                              <TableCell className="font-medium text-xs align-top pt-3">
+                                {getDisplayName(agent)}
+                              </TableCell>
+                              <TableCell className="align-top pt-3">
+                                <SignalBadge signal={s.signal?.toLowerCase()} />
+                              </TableCell>
+                              <TableCell className="align-top pt-3">
+                                <ConfidenceBadge value={s.confidence ?? 0} />
+                              </TableCell>
+                              <TableCell className="max-w-md align-top pt-3">
+                                <ReasoningContent content={s.reasoning} />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
 
                 {/* Portfolio decision */}
                 {decision && (

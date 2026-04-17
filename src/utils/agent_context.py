@@ -13,6 +13,7 @@ Two tiers of formatting:
     brief reasoning summary.
 """
 
+import math
 import re
 from typing import Any
 
@@ -205,8 +206,13 @@ def _fmt_growth(sig: dict, ticker: str) -> str:
 
     insider = r.get("insider_conviction", {})
     if insider:
-        buys  = int(insider.get("buys",  0))
-        sells = int(insider.get("sells", 0))
+        def _safe_int(v):
+            try:
+                return int(v) if v is not None and not (isinstance(v, float) and math.isnan(v)) else 0
+            except (TypeError, ValueError):
+                return 0
+        buys  = _safe_int(insider.get("buys",  0))
+        sells = _safe_int(insider.get("sells", 0))
         lines.append(f"  Insider conviction: {buys} buys vs {sells} sells")
 
     health = r.get("financial_health", {})
