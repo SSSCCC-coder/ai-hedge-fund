@@ -324,9 +324,9 @@ const FUNCTIONAL_ANALYST_KEYS = [
   'fundamentals_analyst',
   'valuation_analyst',
   'growth_analyst',
-  'technicals_analyst',
-  'sentiment_agent',
-  'news_sentiment_agent',
+  'technical_analyst',
+  'sentiment_analyst',
+  'news_sentiment_analyst',
 ];
 
 function isFunctionalAnalyst(agentId: string): boolean {
@@ -377,54 +377,93 @@ function MetricsDetailTable({ metricsDetail }: { metricsDetail: Record<string, a
   );
 }
 
+function KVTable({ rows }: { rows: { label: string; value: string }[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded border border-border/50 overflow-hidden">
+      <table className="w-full text-[11px]">
+        <tbody>
+          {rows.map(({ label, value }) => (
+            <tr key={label} className="border-t border-border/30 first:border-t-0 hover:bg-muted/10">
+              <td className="px-2 py-1 text-muted-foreground w-1/2">{label}</td>
+              <td className="px-2 py-1 font-mono text-foreground">{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SentimentSubSignal({ title, data }: { title: string; data: any }) {
+  if (!data) return null;
+  const m = data.metrics || {};
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{title}</span>
+        <SignalBadge signal={data.signal?.toLowerCase()} />
+        <ConfidenceBadge value={data.confidence ?? 0} />
+      </div>
+      <KVTable rows={Object.entries(m).map(([k, v]) => ({
+        label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        value: String(v),
+      }))} />
+    </div>
+  );
+}
+
 function FunctionalAnalystCard({ agentId, sigData }: { agentId: string; sigData: any }) {
   const metrics       = sigData.metrics || {};
   const metricsDetail = sigData.metrics_detail;
   const reasoning     = sigData.reasoning || {};
 
-  // Build a readable key-value summary from `metrics`
-  const kvMetrics: { label: string; value: string }[] = Object.entries(metrics)
-    .filter(([, v]) => v !== null && v !== undefined && v !== '')
-    .map(([k, v]) => ({
-      label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      value: String(v),
-    }));
-
-  // For news_sentiment: pull metrics from reasoning.news_sentiment.metrics
-  let newsMetrics: { label: string; value: string }[] = [];
-  if (agentId.includes('news_sentiment') && reasoning.news_sentiment?.metrics) {
-    newsMetrics = Object.entries(reasoning.news_sentiment.metrics).map(([k, v]) => ({
-      label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      value: String(v),
-    }));
-  }
-
-  const displayMetrics = newsMetrics.length > 0 ? newsMetrics : kvMetrics;
+  const isSentiment    = agentId.includes('sentiment_analyst') && !agentId.includes('news');
+  const isNewsSentiment = agentId.includes('news_sentiment_analyst');
 
   return (
     <div className="rounded-md border border-border/50 bg-muted/5 p-3 space-y-2">
+      {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold">{getDisplayName(agentId)}</span>
         <SignalBadge signal={sigData.signal?.toLowerCase()} />
         <ConfidenceBadge value={sigData.confidence ?? 0} />
       </div>
 
+      {/* Valuation / Technicals / Fundamentals: metrics_detail table */}
       {metricsDetail && <MetricsDetailTable metricsDetail={metricsDetail} />}
 
-      {!metricsDetail && displayMetrics.length > 0 && (
-        <div className="rounded border border-border/50 overflow-hidden">
-          <table className="w-full text-[11px]">
-            <tbody>
-              {displayMetrics.map(({ label, value }) => (
-                <tr key={label} className="border-t border-border/30 first:border-t-0 hover:bg-muted/10">
-                  <td className="px-2 py-1 text-muted-foreground w-1/2">{label}</td>
-                  <td className="px-2 py-1 font-mono text-foreground">{value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Sentiment: insider + news sub-signals from reasoning */}
+      {isSentiment && (
+        <div className="space-y-2">
+          <SentimentSubSignal title="Insider Trading" data={reasoning.insider_trading} />
+          <SentimentSubSignal title="News Sentiment"  data={reasoning.news_sentiment} />
+          {reasoning.combined_analysis && (
+            <div className="text-[11px] text-muted-foreground border-t border-border/30 pt-1.5">
+              {reasoning.combined_analysis.signal_determination}
+            </div>
+          )}
         </div>
       )}
+
+      {/* News Sentiment Analyst: article breakdown */}
+      {isNewsSentiment && reasoning.news_sentiment?.metrics && (
+        <KVTable rows={Object.entries(reasoning.news_sentiment.metrics).map(([k, v]) => ({
+          label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: String(v),
+        }))} />
+      )}
+
+      {/* Growth: kv metrics (no metrics_detail, no special reasoning) */}
+      {!metricsDetail && !isSentiment && !isNewsSentiment && (() => {
+        const rows = Object.entries(metrics)
+          .filter(([, v]) => v !== null && v !== undefined && v !== '')
+          .map(([k, v]) => ({
+            label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            value: String(v),
+          }));
+        return <KVTable rows={rows} />;
+      })()}
     </div>
   );
 }
@@ -477,7 +516,7 @@ function AnalysisResultsSection({
             const functionalAgents = allAgents
               .filter(([agent]) => isFunctionalAnalyst(agent))
               .sort(([a], [b]) => {
-                const order = ['fundamentals', 'valuation', 'growth', 'technicals', 'sentiment_agent', 'news_sentiment'];
+                const order = ['fundamentals_analyst', 'valuation_analyst', 'growth_analyst', 'technical_analyst', 'sentiment_analyst', 'news_sentiment_analyst'];
                 return order.findIndex(k => a.includes(k)) - order.findIndex(k => b.includes(k));
               });
 
